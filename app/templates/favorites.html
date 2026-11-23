@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}生词本 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">生词本</div>
+  <span class="badge">{{ rows|length }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card tight">
+  <div class="btn-row">
+    <select class="input grow" id="target">
+      <option value="">选择要加入的词本…</option>
+      {% for name in (wordbooks or []) %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+    </select>
+    <button class="btn" id="add-all">全部加入</button>
+  </div>
+</div>
+
+<div class="group">
+  <div class="word-rows">
+    {% for row in rows %}
+      <div class="word-row">
+        <div class="grow">
+          <div class="w">{{ row.word }}</div>
+          <div class="t">{{ row.translation|short(40) }}</div>
+          <div class="t">{{ row.container }} · {{ '词本' if row.ctype == 'wordbook' else '词书' }} · {{ row.due_text }}</div>
+        </div>
+        <div class="side">
+          <button class="btn small" data-fav="1"
+                  onclick="toggleFavorite('{{ row.uid }}', '{{ row.container }}', '{{ row.ctype }}', this)">★ 取消</button>
+        </div>
+      </div>
+    {% endfor %}
+    {% if not rows %}<div class="empty">还没收藏过单词。在单词表里点「☆ 收藏」</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const uids = {{ rows|map(attribute='uid')|list|tojson }};
+$("#add-all").addEventListener("click", async () => {
+  const target = $("#target").value;
+  if (!target) { toast("先选一个词本"); return; }
+  if (!uids.length) { toast("没有可加入的词"); return; }
+  const result = await postJSON("/api/wordbook/add", { target, uids });
+  toast(result.ok ? `已加入 ${result.added} 个词` : (result.error || "失败"), result.ok ? "success" : "error");
+});
+</script>
+{% endblock %}

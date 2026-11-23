@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}设置 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') }}" title="返回">{{ icon('left', 20) }}</a>
+  <div class="nav-title">设置</div>
+  <span style="width:40px"></span>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="post" action="{{ url_for('me.settings_save') }}" id="settings-form">
+  <div class="card">
+    <h2>API Key<span class="hint">{{ '已配置' if has_key else '尚未配置' }}</span></h2>
+    <div class="field">
+      <label>DeepSeek API Key</label>
+      <input class="input" type="text" name="api_key" value="{{ api_key }}" autocomplete="off"
+             spellcheck="false" placeholder="sk-…">
+    </div>
+    <p class="small muted">保存进 <code>config/ai.json</code>（已在 <code>.gitignore</code> 里）。清空输入框 = 删掉这把 key。</p>
+  </div>
+
+  <div class="card">
+    <h2>AI 提示词<span class="hint">两段都必须是有效提示词，留空不会保存</span></h2>
+
+    <div class="field">
+      <label>生成例句（generate_sentence.system）</label>
+      <textarea class="answer-box" name="prompt_generate" rows="7" spellcheck="false">{{ prompt_generate }}</textarea>
+      <div class="btn-row mt8">
+        <button type="button" class="btn small" onclick="restorePrompt('generate_sentence')">恢复默认</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>评分判定（check_answer.system）</label>
+      <textarea class="answer-box" name="prompt_check" rows="9" spellcheck="false">{{ prompt_check }}</textarea>
+      <div class="btn-row mt8">
+        <button type="button" class="btn small" onclick="restorePrompt('check_answer')">恢复默认</button>
+        <button type="button" class="btn small" onclick="restorePrompt('all')">两个都恢复默认</button>
+      </div>
+    </div>
+
+    <p class="small muted">提示词是 AI 请求的固定前缀，改了之后缓存会全部失效（第一次会稍微贵一点），这是正常现象。</p>
+  </div>
+
+  <div class="card">
+    <h2>每轮数量</h2>
+    <div class="field-row">
+      <div class="field"><label>每轮学习新词</label>
+        <input class="input" type="number" name="learning_per_round" min="1" max="200"
+               value="{{ app_cfg.get('learning_per_round', 20) }}"></div>
+      <div class="field"><label>每轮复习到期词</label>
+        <input class="input" type="number" name="review_per_round" min="1" max="500"
+               value="{{ app_cfg.get('review_per_round', 50) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>预习倍数（每轮学习量 × N）</label>
+        <input class="input" type="number" name="preview_multiplier" min="1" max="10"
+               value="{{ app_cfg.get('preview_multiplier', 2) }}"></div>
+      <div class="field"><label>熟练阈值（天）</label>
+        <input class="input" type="number" name="proficiency_days" min="1" max="3650"
+               value="{{ app_cfg.get('proficiency_days', 365) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>每个词记住的旧例句（条）</label>
+        <input class="input" type="number" name="sentence_history" min="0" max="20"
+               value="{{ app_cfg.get('sentence_history', 5) }}">
+        <div class="small muted" style="margin-top:6px">生成新句子时会避开这些；0 = 不记录</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>过关标准<span class="hint">AI 只打分，过不过由这里决定</span></h2>
+    {% set rule = app_cfg.get('pass_rule', {}) %}
+    <div class="field-row">
+      <div class="field"><label>判定模式</label>
+        <select name="pass_mode">
+          <option value="and" {{ 'selected' if rule.get('mode') == 'and' }}>and（两个都得达标）</option>
+          <option value="weighted" {{ 'selected' if rule.get('mode') == 'weighted' }}>weighted（加权总分）</option>
+        </select></div>
+      <div class="field"><label>总分线（weighted 用）</label>
+        <input class="input" type="number" step="0.05" min="0" max="1" name="total_min"
+               value="{{ rule.get('total_min', 0.8) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>整句翻译最低分</label>
+        <input class="input" type="number" step="0.05" min="0" max="1" name="sentence_min"
+               value="{{ rule.get('sentence_min', 0.8) }}"></div>
+      <div class="field"><label>关键词翻译最低分</label>
+        <input class="input" type="number" step="0.05" min="0" max="1" name="keyword_min"
+               value="{{ rule.get('keyword_min', 0.8) }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>余额</h2>
+    <div class="field-row">
+      <div class="field"><label>警戒线（¥，低于它禁止开始）</label>
+        <input class="input" type="number" step="0.1" min="0" name="balance_warning"
+               value="{{ app_cfg.get('balance', {}).get('warning', 5) }}"></div>
+      <div class="field"><label>余额缓存（秒）</label>
+        <input class="input" type="number" min="10" name="balance_refresh"
+               value="{{ app_cfg.get('balance', {}).get('refresh_seconds', 300) }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>AI 并发<span class="hint">串行最省缓存，并发最快</span></h2>
+    <div class="field-row">
+      <div class="field"><label>启用多线程</label>
+        <label class="row" style="cursor:pointer;background:transparent;padding:0">
+          <input type="checkbox" name="concurrency_enabled" {{ 'checked' if concurrency.get('enabled', True) }}>
+          <span class="small muted">开启后按下面配置并发请求</span>
+        </label>
+      </div>
+      <div class="field"><label>模式</label>
+        <select name="concurrency_mode">
+          <option value="warmup" {{ 'selected' if concurrency.get('mode') == 'warmup' }}>warmup（先预热一个再并发）</option>
+          <option value="parallel" {{ 'selected' if concurrency.get('mode') == 'parallel' }}>parallel（全并发）</option>
+          <option value="serial" {{ 'selected' if concurrency.get('mode') == 'serial' }}>serial（串行）</option>
+        </select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>线程数</label>
+        <input class="input" type="number" name="workers" min="1" max="16"
+               value="{{ concurrency.get('workers', 4) }}"></div>
+      <div class="field"><label>预热请求数</label>
+        <input class="input" type="number" name="warmup_requests" min="0" max="5"
+               value="{{ concurrency.get('warmup_requests', 1) }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>FSRS 参数<span class="hint">默认值就是原始公式</span></h2>
+    <div class="field-row">
+      <div class="field"><label>初始难度 D</label>
+        <input class="input" type="number" step="0.1" name="initial_difficulty" value="{{ fsrs.get('initial_difficulty', 3.0) }}"></div>
+      <div class="field"><label>初始稳定性 S（秒）</label>
+        <input class="input" type="number" step="1" name="initial_stability" value="{{ fsrs.get('initial_stability', 86400) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>alpha（答对降幅）</label>
+        <input class="input" type="number" step="0.05" name="alpha" value="{{ fsrs.get('alpha', 0.8) }}"></div>
+      <div class="field"><label>beta（答错升幅）</label>
+        <input class="input" type="number" step="0.05" name="beta" value="{{ fsrs.get('beta', 0.4) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>damping（均值回归）</label>
+        <input class="input" type="number" step="0.01" name="damping" value="{{ fsrs.get('damping', 0.02) }}"></div>
+      <div class="field"><label>失败封顶 S（秒，0 = 关闭）</label>
+        <input class="input" type="number" step="1" name="failure_cap" value="{{ fsrs.get('failure_stability_cap_seconds', 86400) }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>两次复习最短间隔（小时，0 = 关闭）</label>
+        <input class="input" type="number" step="0.5" min="0" name="min_interval_hours"
+               value="{{ ((fsrs.get('min_interval_seconds', 86400) or 0) / 3600) | round(2) }}">
+        <div class="small muted" style="margin-top:6px">到期时间不会早于「这次完成 + 这个间隔」，避免同一个词同一天被反复抽到</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>服务器<span class="hint">改完要重启程序才生效</span></h2>
+    <div class="field-row">
+      <div class="field"><label>端口</label>
+        <input class="input" type="number" name="server_port" min="1" max="65535"
+               value="{{ server.get('port', 5000) }}"></div>
+      <div class="field"><label>访问范围</label>
+        <label class="row" style="cursor:pointer;background:transparent;padding:0">
+          <input type="checkbox" name="server_allow_lan" {{ 'checked' if server.get('allow_lan') }}>
+          <span class="small muted">允许非本机访问（手机 / 别的电脑）</span>
+        </label>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>访问令牌（6 位数字）</label>
+        <div class="btn-row">
+          <input class="input" id="token-display" value="{{ server_token }}" readonly
+                 style="letter-spacing:.35em;font-weight:600;text-align:center">
+          <button type="button" class="btn small" onclick="regenToken()">重新生成</button>
+        </div>
+      </div>
+      <div class="field"><label>　</label></div>
+    </div>
+    <p class="small muted">
+      默认只接受本机（127.0.0.1）的请求；勾上“允许非本机访问”后，手机等设备打开时
+      要先输入这 6 位数字。重新生成令牌会让已经解锁的设备失效。
+    </p>
+  </div>
+
+  <div class="card" style="border:1px solid #f3ddd6">
+    <h2 style="color:var(--danger)">初始化<span class="hint">清空学习数据，词书保留</span></h2>
+    <p class="small muted">
+      会清掉：任务、历史、每个单词的进度与复习计划、笔记、收藏、预习记录、AI 对话记忆。<br>
+      不会动：词书与词条、提示词、各项设置。
+    </p>
+    <div class="btn-row mt16">
+      <button type="button" class="btn btn-danger" onclick="openReset()">初始化，清除所有用户数据</button>
+    </div>
+  </div>
+
+  <div class="card tight">
+    <button class="btn btn-primary btn-big btn-block">保存设置</button>
+  </div>
+</form>
+
+<div class="modal" id="reset-modal">
+  <div class="modal-card">
+    <h3>确认初始化？</h3>
+    <p class="small muted">
+      将清空：任务、历史、所有单词的学习进度与复习计划、笔记、收藏、预习记录、AI 对话记忆。<br>
+      词书、词条、提示词和各项设置都会保留。<br>
+      <b style="color:var(--danger)">这个操作不可撤销。</b>
+    </p>
+    <label class="row" style="cursor:pointer;background:#faf9f6;padding:12px 14px;margin-top:12px">
+      <input type="checkbox" id="clear_key">
+      <span class="small">同时清空 API Key（把项目交给别人时勾上）</span>
+    </label>
+    <div class="btn-row mt16" style="justify-content:flex-end">
+      <button type="button" class="btn" onclick="closeReset()">取消</button>
+      <button type="button" class="btn btn-danger" id="reset-confirm" onclick="doReset()">确认清除</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function restorePrompt(which) {
+  if (!confirm("把提示词恢复成出厂默认？当前的修改会丢失。")) return;
+  const result = await postJSON("/api/prompt/restore", { which });
+  if (!result.ok) { toast(result.error || "恢复失败", "error"); return; }
+  toast("已恢复默认，正在刷新…", "success");
+  setTimeout(() => location.reload(), 400);
+}
+
+function openReset() { document.getElementById("reset-modal").classList.add("on"); }
+function closeReset() { document.getElementById("reset-modal").classList.remove("on"); }
+
+async function regenToken() {
+  if (!confirm("重新生成 6 位访问令牌？已经解锁的手机需要重新输入。")) return;
+  const result = await postJSON("/api/server/token", {});
+  if (!result.ok) { toast(result.error || "生成失败", "error"); return; }
+  document.getElementById("token-display").value = result.token;
+  toast("新令牌已生成", "success");
+}
+
+async function doReset() {
+  const button = document.getElementById("reset-confirm");
+  button.disabled = true;
+  const clearKey = document.getElementById("clear_key").checked;
+  showLoading("正在清除…");
+  const result = await postJSON("/api/reset", { clear_api_key: clearKey });
+  hideLoading();
+  button.disabled = false;
+  if (!result.ok) { toast(result.error || "清除失败", "error"); return; }
+  closeReset();
+  toast("已初始化", "success");
+  setTimeout(() => location.reload(), 700);
+}
+
+document.getElementById("reset-modal").addEventListener("click", (event) => {
+  if (event.target.id === "reset-modal") closeReset();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeReset();
+});
+</script>
+{% endblock %}

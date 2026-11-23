@@ -1,0 +1,99 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}看看答案 · {{ app_name }}{% endblock %}
+{% block body_class %}study{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}" title="返回首页">{{ icon('left', 20) }}</a>
+  <div class="nav-title">看看答案</div>
+  <span class="badge">{{ progress.done }} / {{ progress.total }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card center" style="padding:22px 20px">
+  <div class="verdict-icon bad">{{ icon('x', 42, 1.5) }}</div>
+  <h2 style="font-size:19px;margin:0">这次没对</h2>
+  <p class="muted small" style="margin:6px 0 0">看看标准译文和词义，这个词稍后会再考一次</p>
+</div>
+
+<div class="card quote-card">
+  <div class="sentence">{{ problem.get('sentence', '')|mark(problem.get('keyword_form') or task.word) }}</div>
+  <p style="font-size:16.5px;margin:10px 0 0">{{ problem.get('translation') or '（没有参考译文）' }}</p>
+  <div class="divider"></div>
+  <div class="word-head">
+    <span class="w">{{ task.word }}</span>
+    {% if word.get('phonetic') %}<span class="phonetic">{{ word.get('phonetic') }}</span>{% endif %}
+    <span class="spacer" style="flex:1"></span>
+    <button class="icon-btn" onclick="speak('{{ task.word }}')" title="发音">{{ icon('speaker', 18) }}</button>
+    <button class="icon-btn {{ 'on' if word.get('favorite') else '' }}"
+            data-fav="{{ 1 if word.get('favorite') else 0 }}"
+            title="{{ '取消收藏' if word.get('favorite') else '收藏' }}"
+            onclick="toggleFavorite('{{ task.uid }}', '{{ current_container }}', '{{ current_ctype }}', this)">
+      {{ icon('star', 18) }}
+    </button>
+  </div>
+  <div class="meaning mt8">{{ word.get('translation') or '（没有释义）' }}</div>
+</div>
+
+{% if task.get('answer') %}
+<div class="card">
+  <h2>你写的</h2>
+  <p style="white-space:pre-line;margin:0 0 12px">{{ task.get('answer') }}</p>
+  <div class="score-row">
+    <div class="score {{ 'good' if (task.get('sentence_score') or 0) >= pass_rule.get('sentence_min', 0.8) else 'bad' }}">
+      <div class="k">整句翻译</div>
+      <div class="v">{{ '%.2f'|format(task.get('sentence_score') or 0) }}</div>
+    </div>
+    <div class="score {{ 'good' if (task.get('keyword_score') or 0) >= pass_rule.get('keyword_min', 0.8) else 'bad' }}">
+      <div class="k">关键词翻译</div>
+      <div class="v">{{ '%.2f'|format(task.get('keyword_score') or 0) }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>笔记<span class="hint">跟着这个单词走，下次还会看到</span></h2>
+  <textarea class="answer-box" id="note" placeholder="记点什么，比如易混词、自己的记法…">{{ word.get('note') or '' }}</textarea>
+  <div class="meta-line mt8"><span id="note-tip" class="small muted"></span></div>
+</div>
+
+<div class="card tight">
+  <a class="btn btn-primary btn-big btn-block" id="next-btn" href="{{ url_for('study.session', kind=state.kind) }}">下一题</a>
+  <div class="meta-line mt8">
+    <span>已错 {{ task.error_count }} 次</span>
+    <span>这个词还会再出现</span>
+  </div>
+  <div class="small muted center mt8">Ctrl + Enter 也可以下一题</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    document.getElementById("next-btn").click();
+  }
+});
+
+const uid = "{{ task.uid }}";
+const noteBox = $("#note");
+let timer = null;
+
+async function saveNote() {
+  const note = noteBox.value.trim();
+  const result = await postJSON("/api/study/note", { uid, note });
+  $("#note-tip").textContent = result.ok ? "已保存" : (result.error || "保存失败");
+  setTimeout(() => { $("#note-tip").textContent = ""; }, 1800);
+}
+
+noteBox.addEventListener("input", () => {
+  clearTimeout(timer);
+  timer = setTimeout(saveNote, 700);
+});
+noteBox.addEventListener("blur", saveNote);
+</script>
+{% endblock %}

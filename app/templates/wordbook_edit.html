@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}编辑 · {{ name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.wordbooks') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">编辑 · {{ name }}</div>
+  <span class="badge">{{ info.total }} 词</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="meta-line" style="margin:0 4px 10px">
+  <span>待学 {{ info.new }} · 复习 {{ info.review }} · 熟练 {{ info.mastered }}</span>
+</div>
+
+<div class="group">
+  <button type="button" class="group-row" onclick="openRename()" style="width:100%;text-align:left;background:none;border:0;cursor:pointer">
+    <span class="ic-box amber">{{ icon('note', 18) }}</span>
+    <span class="grow">重命名
+      <div class="value small">改成另一个名字，词条和进度都保留</div>
+    </span>
+    <span class="chev">›</span>
+  </button>
+
+  <button type="button" class="group-row" onclick="openJson()" style="width:100%;text-align:left;background:none;border:0;cursor:pointer">
+    <span class="ic-box blue">{{ icon('plus', 18) }}</span>
+    <span class="grow">JSON 插入
+      <div class="value small">粘贴 JSON 追加单词，已存在的自动跳过</div>
+    </span>
+    <span class="chev">›</span>
+  </button>
+
+  <a class="group-row" href="{{ url_for('me.wordbook_pick', name=name) }}">
+    <span class="ic-box mint">{{ icon('search', 18) }}</span>
+    <span class="grow">从词库中选择
+      <div class="value small">在已有词书里挑词，支持搜索</div>
+    </span>
+    <span class="chev">›</span>
+  </a>
+</div>
+
+<div class="card">
+  <h2>提示</h2>
+  <p class="small muted" style="margin:0">
+    词本是独立的一份拷贝：从词书里加进来的词，学习进度从零开始，两边互不影响。
+  </p>
+</div>
+
+<div class="modal" id="rename-modal">
+  <div class="modal-card" style="width:min(560px,100%)">
+    <h3>重命名</h3>
+    <p class="small muted" style="margin:0 0 14px">当前名字：<b>{{ name }}</b></p>
+    <div class="field">
+      <label>新名字</label>
+      <input class="input" id="rename-input" value="{{ name }}" maxlength="40" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="flash error hidden" id="rename-error"></div>
+    <div class="btn-row mt16" style="justify-content:flex-end">
+      <button type="button" class="btn" onclick="closeRename()">取消</button>
+      <button type="button" class="btn btn-primary" id="rename-confirm" onclick="doRename()">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="json-modal">
+  <div class="modal-card" style="width:min(760px,100%)">
+    <h3>JSON 插入</h3>
+    <p class="small muted" style="margin:0 0 14px">
+      格式同新建词书：<code>{"data":[{"word":"I","translation":"我"}]}</code>。已存在的词会跳过，不会覆盖。
+    </p>
+    <div class="field">
+      <label>JSON 内容</label>
+      <textarea class="answer-box" id="json-text" rows="10" spellcheck="false"
+                placeholder='{"data":[{"word":"I","translation":"我"}]}'></textarea>
+      <div class="meta-line mt8">
+        <span class="small muted" id="json-meta">0 条 / 0 字符 / 0 KB</span>
+        <span class="small muted">上限 8 MB</span>
+      </div>
+      <div class="btn-row mt8">
+        <input type="file" id="json-file" accept=".json,.txt,application/json,text/plain" class="hidden">
+        <button type="button" class="btn small" onclick="document.getElementById('json-file').click()">从文件读取…</button>
+      </div>
+    </div>
+    <div class="flash error hidden" id="json-error"></div>
+    <div class="btn-row mt16" style="justify-content:flex-end">
+      <button type="button" class="btn" onclick="closeJson()">取消</button>
+      <button type="button" class="btn btn-primary" id="json-confirm" onclick="doJson()">确认插入</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const NAME = {{ name|tojson }};
+const renameModal = document.getElementById("rename-modal");
+const renameInput = document.getElementById("rename-input");
+const renameError = document.getElementById("rename-error");
+const jsonModal = document.getElementById("json-modal");
+const jsonText = document.getElementById("json-text");
+const jsonError = document.getElementById("json-error");
+
+function openRename() {
+  renameError.classList.add("hidden");
+  renameInput.value = NAME;
+  renameModal.classList.add("on");
+  setTimeout(() => { renameInput.focus(); renameInput.select(); }, 60);
+}
+function closeRename() { renameModal.classList.remove("on"); }
+
+async function doRename() {
+  const value = renameInput.value.trim();
+  if (!value) { renameError.textContent = "名字不能为空"; renameError.classList.remove("hidden"); return; }
+  renameError.classList.add("hidden");
+  const button = document.getElementById("rename-confirm");
+  button.disabled = true;
+  let result;
+  try {
+    result = await postJSON("/api/wordbook/rename", { name: NAME, new_name: value, ctype: "wordbook" });
+  } catch (err) {
+    result = { ok: false, error: "网络异常" };
+  }
+  button.disabled = false;
+  if (!result.ok) { renameError.textContent = result.error || "重命名失败"; renameError.classList.remove("hidden"); return; }
+  closeRename();
+  toast("已重命名为「" + result.name + "」", "success");
+  setTimeout(() => location.href = "/me/wordbooks/" + encodeURIComponent(result.name) + "/edit", 600);
+}
+
+function openJson() {
+  jsonError.classList.add("hidden");
+  jsonModal.classList.add("on");
+  setTimeout(() => jsonText.focus(), 60);
+}
+function closeJson() { jsonModal.classList.remove("on"); }
+
+function updateJsonMeta() {
+  const text = jsonText.value;
+  const bytes = new Blob([text]).size;
+  const count = (text.match(/"word"\s*:/g) || []).length;
+  document.getElementById("json-meta").textContent =
+    `约 ${count} 条 / ${text.length.toLocaleString()} 字符 / ${(bytes / 1024).toFixed(1)} KB`;
+}
+jsonText.addEventListener("input", updateJsonMeta);
+
+document.getElementById("json-file").addEventListener("change", async (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  try {
+    jsonText.value = await file.text();
+    updateJsonMeta();
+    jsonError.classList.add("hidden");
+  } catch (err) {
+    jsonError.textContent = "读取文件失败：" + err;
+    jsonError.classList.remove("hidden");
+  }
+  event.target.value = "";
+});
+
+async function doJson() {
+  const text = jsonText.value;
+  if (!text.trim()) { jsonError.textContent = "先把 JSON 粘进来"; jsonError.classList.remove("hidden"); return; }
+  jsonError.classList.add("hidden");
+  const button = document.getElementById("json-confirm");
+  button.disabled = true;
+  showLoading("正在插入…");
+  let result;
+  try {
+    result = await postJSON("/api/wordbook/append", { name: NAME, text: text, ctype: "wordbook" });
+  } catch (err) {
+    result = { ok: false, error: "网络异常" };
+  }
+  hideLoading();
+  button.disabled = false;
+  if (!result.ok) { jsonError.textContent = result.error || "插入失败"; jsonError.classList.remove("hidden"); return; }
+  closeJson();
+  let message = `新增 ${result.inserted} 个词`;
+  if (result.already) message += `，已存在跳过 ${result.already} 个`;
+  if (result.skipped) message += `，重复跳过 ${result.skipped} 个`;
+  toast(message, "success");
+  setTimeout(() => location.reload(), 800);
+}
+
+renameModal.addEventListener("click", (event) => { if (event.target.id === "rename-modal") closeRename(); });
+jsonModal.addEventListener("click", (event) => { if (event.target.id === "json-modal") closeJson(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") { closeRename(); closeJson(); }
+});
+</script>
+{% endblock %}

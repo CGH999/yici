@@ -1,0 +1,60 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}本轮结果 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">本轮结果</div>
+  <span class="badge">{{ '学习' if state.kind == 'learning' else '复习' }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>{{ current_container }}<span class="hint">完成 {{ summary|length }} 个词</span></h2>
+  <div class="stat-grid">
+    <div class="stat accent">
+      <div class="label">复习中</div>
+      <div class="num">{{ info.get('review', 0) }}<small>词</small></div>
+    </div>
+    <div class="stat ok">
+      <div class="label">已熟练</div>
+      <div class="num">{{ info.get('mastered', 0) }}<small>词</small></div>
+    </div>
+    <div class="stat">
+      <div class="label">待学习</div>
+      <div class="num">{{ info.get('new', 0) }}<small>词</small></div>
+    </div>
+    <div class="stat">
+      <div class="label">一次通过率</div>
+      <div class="num">{{ '%.0f'|format(totals.get('first_pass_rate', 0) * 100) }}<small>%</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="group">
+  <div class="word-grid">
+    {% for row in summary %}
+      <div class="word-row">
+        <div class="grow">
+          <div class="w">{{ row.word }}
+            {% if row.first_pass %}<span class="badge ok">一次过</span>
+            {% elif row.error_count %}<span class="badge warn">错 {{ row.error_count }} 次</span>{% endif %}
+          </div>
+          <div class="t">{{ row.translation|short(38) }}</div>
+        </div>
+        <div class="side">
+          {% if row.learn_state == 'mastered' %}<span class="badge ok">已熟练</span>
+          {% elif row.learn_state == 'learning' %}<span class="badge">学习中</span>
+          {% else %}<span class="badge warn">复习中</span>{% endif %}
+          <div class="small muted mt8">{{ row.due_text }}</div>
+        </div>
+      </div>
+    {% endfor %}
+    {% if not summary %}<div class="empty">这一轮没有完成的词</div>{% endif %}
+  </div>
+</div>
+
+<a class="btn btn-primary btn-big btn-block" href="{{ url_for('home.index') }}">回首页</a>
+{% endblock %}

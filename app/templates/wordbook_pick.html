@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}从词库选择 · {{ name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.wordbook_edit', name=name) }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">从词库选择</div>
+  <span class="badge" id="selected-badge">已选 0</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card tight">
+  <div class="btn-row">
+    <select class="input" id="book-select">
+      {% for book in books %}
+        <option value="{{ book }}" {{ 'selected' if book == selected else '' }}>{{ book }}</option>
+      {% endfor %}
+    </select>
+    <input class="input grow" id="search-input" placeholder="搜索单词或释义，回车搜索">
+    <button class="btn" type="button" id="search-btn">{{ icon('search', 18) }}</button>
+  </div>
+  <p class="small muted" style="margin:10px 0 0">
+    勾选后点右下角「加入词本」；已经在本子里的词会标灰、不能重复选。
+  </p>
+</div>
+
+<div class="group" id="word-list">
+  <div class="empty">正在加载…</div>
+</div>
+
+<div class="btn-row" style="justify-content:center;margin-top:12px">
+  <button class="btn" type="button" id="prev-btn" disabled>上一页</button>
+  <span class="small muted" id="page-label">第 1 页</span>
+  <button class="btn" type="button" id="next-btn" disabled>下一页</button>
+</div>
+
+<div class="card tight" style="position:sticky;bottom:12px;margin-top:16px;display:flex;gap:12px;align-items:center">
+  <span class="grow small" id="selected-text">还没有选中单词</span>
+  <button class="btn btn-primary" type="button" id="add-btn" onclick="addSelected()">加入词本</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TARGET = {{ name|tojson }};
+const BOOKS = {{ books|tojson }};
+let page = 1;
+let hasMore = false;
+const selected = new Map();   // uid -> word
+
+const listBox = document.getElementById("word-list");
+const pageLabel = document.getElementById("page-label");
+const prevBtn = document.getElementById("prev-btn");
+const nextBtn = document.getElementById("next-btn");
+const bookSelect = document.getElementById("book-select");
+const searchInput = document.getElementById("search-input");
+const searchBtn = document.getElementById("search-btn");
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text == null ? "" : String(text);
+  return div.innerHTML;
+}
+
+function refreshSelectedUI() {
+  const count = selected.size;
+  document.getElementById("selected-badge").textContent = `已选 ${count}`;
+  document.getElementById("selected-text").textContent =
+    count ? `已选 ${count} 个：${Array.from(selected.values()).slice(0, 6).join("、")}${count > 6 ? " …" : ""}`
+          : "还没有选中单词";
+  document.getElementById("add-btn").disabled = count === 0;
+}
+
+async function loadWords() {
+  listBox.innerHTML = '<div class="empty">正在加载…</div>';
+  const params = new URLSearchParams({
+    container: bookSelect.value,
+    ctype: "book",
+    target: TARGET,
+    q: searchInput.value.trim(),
+    page: String(page),
+  });
+  let data;
+  try {
+    const response = await fetch(`/api/wordbank/words?${params.toString()}`);
+    data = await response.json();
+  } catch (err) {
+    listBox.innerHTML = '<div class="empty">加载失败，检查网络或服务器</div>';
+    return;
+  }
+  if (!data.ok) {
+    listBox.innerHTML = `<div class="empty">${escapeHtml(data.error || "加载失败")}</div>`;
+    return;
+  }
+  hasMore = data.has_more;
+  pageLabel.textContent = `第 ${data.page} 页`;
+  prevBtn.disabled = data.page <= 1;
+  nextBtn.disabled = !hasMore;
+
+  if (!data.items.length) {
+    listBox.innerHTML = '<div class="empty">没有符合条件的单词</div>';
+    return;
+  }
+  const rows = data.items.map((item) => {
+    const checked = selected.has(item.uid) ? "checked" : "";
+    const disabled = item.in_target ? "disabled" : "";
+    const badge = item.in_target ? '<span class="badge">已在词本</span>' : "";
+    const cls = item.in_target ? 'style="opacity:.5"' : "";
+    return `
+      <label class="group-row" ${cls} style="cursor:${item.in_target ? "default" : "pointer"}">
+        <input type="checkbox" data-uid="${item.uid}" data-word="${escapeHtml(item.word)}"
+               ${checked} ${disabled} style="width:18px;height:18px">
+        <span class="grow">
+          <div><b>${escapeHtml(item.word)}</b></div>
+          <div class="value small">${escapeHtml(item.translation)}</div>
+        </span>
+        ${badge}
+      </label>`;
+  });
+  listBox.innerHTML = rows.join("");
+
+  listBox.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+    box.addEventListener("change", () => {
+      const uid = box.dataset.uid;
+      if (box.checked) selected.set(uid, box.dataset.word);
+      else selected.delete(uid);
+      refreshSelectedUI();
+    });
+  });
+}
+
+async function addSelected() {
+  if (!selected.size) return;
+  const button = document.getElementById("add-btn");
+  button.disabled = true;
+  showLoading("正在加入…");
+  let result;
+  try {
+    result = await postJSON("/api/wordbook/add", { target: TARGET, uids: Array.from(selected.keys()) });
+  } catch (err) {
+    result = { ok: false, error: "网络异常" };
+  }
+  hideLoading();
+  button.disabled = false;
+  if (!result.ok) { toast(result.error || "加入失败", "error"); return; }
+  toast(`已加入 ${result.added} 个词` + (result.added < selected.size ? "（部分已在词本里）" : ""), "success");
+  selected.clear();
+  refreshSelectedUI();
+  loadWords();
+}
+
+bookSelect.addEventListener("change", () => { page = 1; selected.clear(); refreshSelectedUI(); loadWords(); });
+searchBtn.addEventListener("click", () => { page = 1; loadWords(); });
+searchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); page = 1; loadWords(); }
+});
+prevBtn.addEventListener("click", () => { if (page > 1) { page -= 1; loadWords(); } });
+nextBtn.addEventListener("click", () => { if (hasMore) { page += 1; loadWords(); } });
+
+refreshSelectedUI();
+if (!BOOKS.length) {
+  listBox.innerHTML = '<div class="empty">还没有任何词书</div>';
+} else {
+  loadWords();
+}
+</script>
+{% endblock %}

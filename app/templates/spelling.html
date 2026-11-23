@@ -1,0 +1,78 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}拼写训练 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">拼写训练</div>
+  <span class="badge">{{ progress.done }} / {{ progress.total }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="progress-line" style="margin-top:0"><i style="width: {{ (progress.done / progress.total * 100) if progress.total else 0 }}%"></i></div>
+
+<div class="card">
+  <h2>根据释义拼出单词</h2>
+  <div class="meaning" id="meaning" style="font-size:17px;color:var(--text)">{{ task.translation }}</div>
+  <div class="small muted mt8">字母数：<span id="letters">{{ task.word|length }}</span></div>
+
+  <div class="mt16">
+    <input class="input" id="typed" autocomplete="off" autocapitalize="off" spellcheck="false"
+           placeholder="输入英文单词，回车提交" autofocus>
+  </div>
+
+  <div id="feedback" class="mt8 hidden">
+    <div class="divider"></div>
+    <div class="word-head" id="feedback-word"><span class="w"></span></div>
+    <div class="small muted mt8" id="feedback-tip"></div>
+  </div>
+
+  <div class="btn-row mt16">
+    <button class="btn btn-primary btn-big" id="submit" style="flex:1">提交</button>
+    <button class="btn btn-ghost" id="quit">我不想拼了</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let current = { uid: "{{ task.uid }}" };
+const input = $("#typed");
+const feedback = $("#feedback");
+const feedbackWord = $("#feedback-word .w");
+const feedbackTip = $("#feedback-tip");
+
+async function submit() {
+  const typed = input.value.trim();
+  if (!typed) { toast("先拼一下"); return; }
+  const result = await postJSON("/api/spelling/submit", { uid: current.uid, typed });
+  if (!result.ok) { toast(result.error || "提交失败", "error"); return; }
+
+  if (result.correct) {
+    if (result.finished) {
+      location.href = result.round_finished ? result.result_url : result.session_url;
+      return;
+    }
+    toast("拼对了，之后还要再拼一次", "success");
+    location.href = result.session_url;
+    return;
+  }
+
+  feedback.classList.remove("hidden");
+  feedbackWord.textContent = result.expected;
+  feedbackTip.textContent = "照着输入一遍才能继续";
+  input.value = "";
+  input.focus();
+}
+
+$("#submit").addEventListener("click", submit);
+input.addEventListener("keydown", (event) => { if (event.key === "Enter") submit(); });
+
+$("#quit").addEventListener("click", async () => {
+  const result = await postJSON("/api/spelling/abandon", {});
+  if (result.ok) location.href = result.result_url;
+});
+</script>
+{% endblock %}

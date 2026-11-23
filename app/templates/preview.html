@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}预习 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">预习</div>
+  <span class="badge">{{ data.words|length }} 词</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card tight">
+  <div class="meta-line">
+    <span>接下来要学的词，先混个眼熟</span>
+    <span>最多 {{ data.limit }} 个</span>
+  </div>
+  <div class="progress-line"><i id="bar" style="width:0%"></i></div>
+  <div class="meta-line"><span id="seen">已看 0 / {{ data.words|length }}</span><span>往下滑自动记录</span></div>
+</div>
+
+<div class="group">
+  <div class="word-grid">
+    {% for row in data.words %}
+      <div class="word-row" data-index="{{ loop.index0 }}" data-uid="{{ row.uid }}">
+        <div class="grow">
+          <div class="w">{{ row.word }}{% if row.phonetic %} <span class="phonetic">{{ row.phonetic }}</span>{% endif %}</div>
+          <div class="t" style="white-space:pre-line">{{ row.translation }}</div>
+        </div>
+        <button class="icon-btn" onclick="speak('{{ row.word }}')" title="发音">{{ icon('speaker', 18) }}</button>
+      </div>
+    {% endfor %}
+  </div>
+  {% if not data.words %}<div class="empty">没有新词了</div>{% endif %}
+</div>
+
+<a class="btn btn-primary btn-big btn-block" href="{{ url_for('home.index') }}">看完了，回首页</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const items = $$("[data-uid]").filter((el) => el.classList.contains("word-row"));
+const total = items.length;
+let maxSeen = {{ data.cursor or 0 }};
+let sent = -1;
+let timer = null;
+
+function paint() {
+  const visible = Math.min(maxSeen + 1, total);
+  $("#seen").textContent = `已看 ${visible} / ${total}`;
+  $("#bar").style.width = (total ? Math.round(visible / total * 100) : 0) + "%";
+}
+
+function scheduleSave() { clearTimeout(timer); timer = setTimeout(save, 900); }
+
+async function save() {
+  if (maxSeen <= sent || !total) return;
+  const uids = items.slice(0, maxSeen + 1).map((el) => el.dataset.uid);
+  const result = await postJSON("/api/preview/seen", { index: maxSeen, uids });
+  if (result.ok) sent = maxSeen;
+}
+
+if (total) {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        maxSeen = Math.max(maxSeen, Number(entry.target.dataset.index));
+        paint();
+        scheduleSave();
+      }
+    });
+  }, { threshold: 0.6 });
+  items.forEach((el) => observer.observe(el));
+  paint();
+  window.addEventListener("beforeunload", save);
+}
+</script>
+{% endblock %}

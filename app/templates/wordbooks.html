@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}单词本 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">单词本</div>
+  <span class="badge">{{ items|length }} 本</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="group">
+  {% for item in items %}
+    <div class="group-row" style="cursor:default">
+      <span class="ic-box blue">{{ icon('book', 18) }}</span>
+      <span class="grow">{{ item.container }}
+        <div class="value small">共 {{ item.total }} 词 · 待学 {{ item.new }} · 熟练 {{ item.mastered }}</div>
+      </span>
+      <a class="btn small" href="{{ url_for('me.wordbank', name=item.container, ctype='wordbook') }}">查看</a>
+      <a class="btn small" href="{{ url_for('me.wordbook_edit', name=item.container) }}">编辑</a>
+      <form method="post" action="{{ url_for('me.container_delete') }}"
+            onsubmit="return confirm('删除词本「{{ item.container }}」？词条和进度都会消失');">
+        <input type="hidden" name="name" value="{{ item.container }}">
+        <input type="hidden" name="ctype" value="wordbook">
+        <button class="btn small btn-danger">删除</button>
+      </form>
+    </div>
+  {% endfor %}
+  {% if not items %}<div class="empty">还没有词本，去生词本里把词加进来</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>新建词本</h2>
+  <form method="post" action="{{ url_for('me.container_create') }}" class="btn-row">
+    <input type="hidden" name="ctype" value="wordbook">
+    <input class="input grow" name="name" placeholder="词本名（中文/字母，最长 40 字）" required>
+    <button class="btn btn-primary">新建</button>
+  </form>
+</div>
+{% endblock %}

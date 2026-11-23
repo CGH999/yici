@@ -1,0 +1,11 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ code }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="card center" style="margin-top:40px">
+  <div style="font-size:56px;font-weight:700;color:#e6e2db">{{ code }}</div>
+  <p class="muted">{{ message }}</p>
+  <a class="btn btn-primary mt16" href="{{ url_for('home.index') }}">回首页</a>
+</div>
+{% endblock %}

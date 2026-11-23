@@ -1,0 +1,46 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}本轮完成 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">本轮完成</div>
+  <span style="width:38px"></span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card center">
+  <div style="display:inline-flex;color:var(--ok);margin-bottom:6px">{{ icon('check', 46, 1.4) }}</div>
+  <h2 style="font-size:20px;margin:0">这一轮做完了</h2>
+  <p class="muted small" style="margin:6px 0 0">共 {{ progress.done }} 个词，进度已经写回词库</p>
+  <div class="stat-grid mt16" style="text-align:left">
+    <div class="stat accent">
+      <div class="label">一次通过</div>
+      <div class="num">{{ summary|selectattr('first_pass')|list|length }}<small>词</small></div>
+    </div>
+    <div class="stat">
+      <div class="label">错过再答对</div>
+      <div class="num">{{ summary|length - (summary|selectattr('first_pass')|list|length) }}<small>词</small></div>
+    </div>
+  </div>
+</div>
+
+{% if spelling_enabled %}
+<div class="card">
+  <h2>要不要拼写训练一下？<span class="hint">只给中文，把单词拼出来</span></h2>
+  <p class="muted small">拼写不计入复习计划，只是加深印象。拼错会显示答案，照着写一遍，之后还要再盲拼一次。</p>
+  <form method="post" action="{{ url_for('study.spelling_start', kind=state.kind) }}" class="mt16">
+    <button class="btn btn-primary btn-big btn-block">开始拼写</button>
+  </form>
+  <div class="btn-row mt8">
+    <a class="btn btn-ghost btn-block" href="{{ url_for('study.result', kind=state.kind) }}">跳过，看结果</a>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <a class="btn btn-primary btn-big btn-block" href="{{ url_for('study.result', kind=state.kind) }}">看本轮结果</a>
+</div>
+{% endif %}
+{% endblock %}

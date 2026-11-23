@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}学习中 · {{ app_name }}{% endblock %}
+{% block body_class %}study{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}" title="返回首页">{{ icon('left', 20) }}</a>
+  <div class="nav-title">{{ '学习' if state.kind == 'learning' else '复习' }}</div>
+  <span class="badge">{{ progress.done }} / {{ progress.total }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="progress-line" style="margin-top:0"><i style="width: {{ (progress.done / progress.total * 100) if progress.total else 0 }}%"></i></div>
+
+<div class="card quote-card">
+  <div class="sentence" id="sentence">{{ problem.get('sentence', '')|mark(problem.get('keyword_form') or task.word) }}</div>
+  <div class="word-head mt16">
+    <span class="w">{{ task.word }}</span>
+    {% if word.get('phonetic') %}<span class="phonetic">{{ word.get('phonetic') }}</span>{% endif %}
+    {% if task.error_count and task.error_count > 0 %}<span class="badge warn">已错 {{ task.error_count }} 次</span>{% endif %}
+    <span class="spacer" style="flex:1"></span>
+    <button class="icon-btn" onclick="speak('{{ task.word }}')" title="发音">{{ icon('speaker', 18) }}</button>
+    <button class="icon-btn {{ 'on' if word.get('favorite') else '' }}"
+            data-fav="{{ 1 if word.get('favorite') else 0 }}"
+            title="{{ '取消收藏' if word.get('favorite') else '收藏' }}"
+            onclick="toggleFavorite('{{ task.uid }}', '{{ current_container }}', '{{ current_ctype }}', this)">
+      {{ icon('star', 18) }}
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>把这句话翻译成中文<span class="hint">Ctrl + Enter 提交</span></h2>
+  <textarea class="answer-box" id="answer" placeholder="写下你的中文翻译…" autofocus></textarea>
+  <div class="answer-actions">
+    <button class="btn btn-primary btn-big" id="submit">提交</button>
+    <button class="btn btn-ghost btn-big" id="dont-know">我不会</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const uid = "{{ task.uid }}";
+const answerBox = $("#answer");
+
+async function submit() {
+  const answer = answerBox.value.trim();
+  showLoading("AI 正在评分…");
+  let result;
+  try {
+    result = await postJSON("/api/study/submit", { uid, answer });
+  } catch (err) {
+    hideLoading();
+    toast("网络异常，本次未计入错误", "error");
+    return;
+  }
+  hideLoading();
+  if (!result.ok) {
+    toast(result.error || "评分失败，本次未计入错误", "error");
+    return;
+  }
+  if (result.empty) { location.href = result.error_url; return; }
+  await flashScores(result);
+  if (result.next === "error") location.href = result.error_url;
+  else if (result.next === "correct") location.href = result.correct_url;
+  else location.href = result.session_url;
+}
+
+async function dontKnow() {
+  const result = await postJSON("/api/study/skip_answer", { uid });
+  if (!result.ok) { toast(result.error || "操作失败", "error"); return; }
+  location.href = result.error_url;
+}
+
+$("#submit").addEventListener("click", submit);
+$("#dont-know").addEventListener("click", dontKnow);
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") submit();
+});
+</script>
+{% endblock %}

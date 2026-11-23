@@ -1,0 +1,118 @@
+﻿{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}生成题目 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">正在出题</div>
+  <span class="badge">{{ '学习' if state.kind == 'learning' else '复习' }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>为 {{ info.total }} 个词生成例句<span class="hint">AI 正在批量写句子</span></h2>
+  <div class="progress-line"><i id="bar" style="width:0%"></i></div>
+  <div class="meta-line">
+    <span id="count">0 / {{ info.total }}</span>
+    <span id="tip">准备中…</span>
+  </div>
+  <div class="btn-row mt16">
+    <button class="btn btn-primary grow hidden" id="enter" style="flex:1">开始做题</button>
+  </div>
+</div>
+
+<div id="failed-wrap" class="card hidden">
+  <h2>这些词生成失败</h2>
+  <div class="list" id="failed-list"></div>
+  <div class="btn-row mt8">
+    <button class="btn" id="retry-all">全部重试</button>
+    <button class="btn btn-ghost" id="skip-all">全部跳过</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const total = {{ info.total }};
+const KIND = {{ state.kind|tojson }};
+let started = false, polling = null;
+
+function paint(data) {
+  const doneCount = data.ready + data.failed;
+  $("#bar").style.width = (total ? Math.round(doneCount / total * 100) : 100) + "%";
+  $("#count").textContent = `${doneCount} / ${total}`;
+  $("#tip").textContent = data.generating ? "AI 正在批量生成…" : (data.error ? data.error : "已完成");
+}
+
+function renderFailed(items) {
+  const failed = items.filter((item) => item.problem_state === "failed");
+  const wrap = $("#failed-wrap");
+  if (!failed.length) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const list = $("#failed-list");
+  list.innerHTML = "";
+  failed.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div class="grow"><div class="w">${item.word}</div>
+      <div class="t">${(item.problem_error || "生成失败").slice(0, 80)}</div></div>
+      <button class="btn small" data-retry="${item.uid}">重试</button>
+      <button class="btn small btn-ghost" data-skip="${item.uid}">跳过</button>`;
+    list.appendChild(row);
+  });
+}
+
+async function tick() {
+  const data = await fetch(`/api/study/progress?kind=${KIND}`).then((r) => r.json());
+  paint(data);
+  renderFailed(data.items || []);
+  const allSettled = data.ready + data.failed >= data.total;
+  if (data.ready > 0 && !data.generating) $("#enter").classList.remove("hidden");
+  if (allSettled && !data.generating) {
+    if (polling) { clearInterval(polling); polling = null; }
+    if (data.ready > 0) location.href = "{{ url_for('study.session', kind=state.kind) }}";
+  }
+}
+
+$("#failed-list").addEventListener("click", async (event) => {
+  const retry = event.target.dataset.retry;
+  const skip = event.target.dataset.skip;
+  if (retry) {
+    showLoading("重新生成…");
+    await postJSON("/api/study/retry", { uids: [retry], kind: KIND });
+    hideLoading();
+    tick();
+  }
+  if (skip) { await postJSON("/api/study/skip", { uid: skip, kind: KIND }); tick(); }
+});
+
+$("#retry-all").addEventListener("click", async () => {
+  showLoading("重新生成…");
+  await postJSON("/api/study/retry", { kind: KIND });
+  hideLoading();
+  tick();
+});
+
+$("#skip-all").addEventListener("click", async () => {
+  const data = await fetch(`/api/study/progress?kind=${KIND}`).then((r) => r.json());
+  for (const item of data.items || []) {
+    if (item.problem_state === "failed") await postJSON("/api/study/skip", { uid: item.uid, kind: KIND });
+  }
+  tick();
+});
+
+$("#enter").addEventListener("click", () => { location.href = "{{ url_for('study.session', kind=state.kind) }}"; });
+
+(async () => {
+  const state = await fetch(`/api/study/progress?kind=${KIND}`).then((r) => r.json());
+  if (state.pending > 0 && !state.generating && !started) {
+    started = true;
+    await postJSON("/api/study/generate", { kind: KIND });
+  }
+  tick();
+  polling = setInterval(tick, 700);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ name }} · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') if ctype == 'wordbook' else url_for('dashboard.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">{{ name }}</div>
+  <a class="nav-btn" href="#search">{{ icon('search', 20) }}</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="chipbar">
+  {% for key, label in filters.items() %}
+    <a class="chip {{ 'active' if state == key else '' }}"
+       href="{{ url_for('me.wordbank', name=name, ctype=ctype, state=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<form class="btn-row" method="get" action="{{ url_for('me.wordbank', name=name) }}" id="search" style="margin-bottom:12px">
+  <input type="hidden" name="ctype" value="{{ ctype }}">
+  <input type="hidden" name="state" value="{{ state }}">
+  <input class="input grow" name="q" value="{{ keyword }}" placeholder="搜索单词或释义">
+  <button class="btn">{{ icon('search', 18) }}</button>
+</form>
+
+<div class="meta-line" style="margin:0 4px 8px">
+  <span><b>{{ info.total }}</b> 词</span>
+  <span>待学 {{ info.new }} · 复习 {{ info.review }} · 熟练 {{ info.mastered }}</span>
+</div>
+
+<div class="group">
+  <div class="word-grid">
+    {% for row in rows %}
+      <div class="word-row" data-row-uid="{{ row.uid }}">
+        {% if ctype == 'wordbook' %}
+          <input type="checkbox" class="pick" data-uid="{{ row.uid }}" data-word="{{ row.word }}"
+                 style="width:18px;height:18px;flex:0 0 auto" title="选中后可批量删除">
+        {% endif %}
+        <div class="grow">
+          <div class="w">{{ row.word }}{% if row.phonetic %} <span class="phonetic">{{ row.phonetic }}</span>{% endif %}</div>
+          <div class="t">{{ row.translation|short(40) }}</div>
+          {% if row.note %}<div class="t">笔记：{{ row.note|short(30) }}</div>{% endif %}
+        </div>
+        <div class="side">
+          {% if row.learn_state == 'mastered' %}<span class="badge ok">已熟练</span>
+          {% elif row.learn_state == 'learning' %}<span class="badge">未学习</span>
+          {% else %}<span class="badge warn">复习中</span>{% endif %}
+          <div class="small muted mt8">{{ row.due_text if row.learn_state != 'learning' else '' }}</div>
+        </div>
+        <button class="icon-btn {{ 'on' if row.favorite else '' }}"
+                data-fav="{{ 1 if row.favorite else 0 }}"
+                title="{{ '取消收藏' if row.favorite else '收藏' }}"
+                onclick="toggleFavorite('{{ row.uid }}', '{{ name }}', '{{ ctype }}', this)">
+          {{ icon('star', 18) }}
+        </button>
+        {% if ctype == 'wordbook' %}
+          <button class="icon-btn" title="从词本删除"
+                  onclick="removeWord('{{ row.uid }}', this)">
+            {{ icon('x', 18) }}
+          </button>
+        {% endif %}
+      </div>
+    {% endfor %}
+    {% if not rows %}<div class="empty">没有符合条件的单词</div>{% endif %}
+  </div>
+</div>
+
+<div class="btn-row" style="justify-content:center">
+  {% if page > 1 %}
+    <a class="btn" href="{{ url_for('me.wordbank', name=name, ctype=ctype, state=state, q=keyword, page=page-1) }}">上一页</a>
+  {% endif %}
+  {% if rows|length == limit %}
+    <a class="btn" href="{{ url_for('me.wordbank', name=name, ctype=ctype, state=state, q=keyword, page=page+1) }}">下一页</a>
+  {% endif %}
+</div>
+
+{% if ctype == 'wordbook' and rows %}
+  <div class="card tight" id="bulk-bar"
+       style="position:sticky;bottom:12px;margin-top:16px;display:none;gap:12px;align-items:center">
+    <span class="grow small" id="bulk-text">已选 0 个</span>
+    <button class="btn btn-danger" type="button" onclick="removeSelected()">删除选中</button>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if ctype == 'wordbook' %}
+<script>
+const WB_NAME = {{ name|tojson }};
+const WB_CTYPE = "wordbook";
+const bulkBar = document.getElementById("bulk-bar");
+const bulkText = document.getElementById("bulk-text");
+
+function selectedBoxes() {
+  return Array.from(document.querySelectorAll(".pick:checked"));
+}
+
+function updateBulk() {
+  if (!bulkBar) return;
+  const count = selectedBoxes().length;
+  bulkBar.style.display = count ? "flex" : "none";
+  bulkText.textContent = `已选 ${count} 个`;
+}
+
+document.querySelectorAll(".pick").forEach((box) => box.addEventListener("change", updateBulk));
+
+async function removeWord(uid, button) {
+  const row = button.closest(".word-row");
+  const word = row ? row.querySelector(".w").textContent.trim() : "";
+  if (!confirm(`从词本删除「${word}」？\n学习进度也会一起删掉（历史记录保留）。`)) return;
+  button.disabled = true;
+  let result;
+  try {
+    result = await postJSON("/api/wordbook/remove", { name: WB_NAME, ctype: WB_CTYPE, uids: [uid] });
+  } catch (err) {
+    result = { ok: false, error: "网络异常" };
+  }
+  button.disabled = false;
+  if (!result.ok) { toast(result.error || "删除失败", "error"); return; }
+  toast(`已删除「${word}」`, "success");
+  if (row) row.remove();
+  updateBulk();
+}
+
+async function removeSelected() {
+  const boxes = selectedBoxes();
+  if (!boxes.length) return;
+  if (!confirm(`从词本删除选中的 ${boxes.length} 个词？\n学习进度也会一起删掉（历史记录保留）。`)) return;
+  const uids = boxes.map((box) => box.dataset.uid);
+  let result;
+  try {
+    result = await postJSON("/api/wordbook/remove", { name: WB_NAME, ctype: WB_CTYPE, uids });
+  } catch (err) {
+    result = { ok: false, error: "网络异常" };
+  }
+  if (!result.ok) { toast(result.error || "删除失败", "error"); return; }
+  toast(`已删除 ${result.removed} 个词`, "success");
+  setTimeout(() => location.reload(), 600);
+}
+</script>
+{% endif %}
+{% endblock %}

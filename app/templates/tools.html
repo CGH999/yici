@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}学习工具 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('me.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">学习工具</div>
+  <span style="width:38px"></span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="group">
+  <a class="group-row" href="{{ url_for('me.preview') }}">
+    <span class="ic-box orange">{{ icon('eye', 18) }}</span>
+    <span class="grow">预习<span class="value small"><br>接下来 {{ info.get('new', 0) }} 个新词先混个眼熟</span></span>
+    <span class="chev">{{ icon('right', 16) }}</span>
+  </a>
+  <a class="group-row" href="{{ url_for('me.wordbank', name=container, ctype=current_ctype, state='due') }}">
+    <span class="ic-box amber">{{ icon('clock', 18) }}</span>
+    <span class="grow">今天到期<span class="value small"><br>{{ info.get('due_today', 0) }} 个词等着复习</span></span>
+    <span class="chev">{{ icon('right', 16) }}</span>
+  </a>
+  <a class="group-row" href="{{ url_for('me.favorites') }}">
+    <span class="ic-box mint">{{ icon('star', 18) }}</span>
+    <span class="grow">生词本<span class="value small"><br>{{ info.get('favorited', 0) }} 个收藏的词</span></span>
+    <span class="chev">{{ icon('right', 16) }}</span>
+  </a>
+  <a class="group-row" href="{{ url_for('me.wordbooks') }}">
+    <span class="ic-box blue">{{ icon('book', 18) }}</span>
+    <span class="grow">单词本<span class="value small"><br>自己攒的词，可以独立学习</span></span>
+    <span class="chev">{{ icon('right', 16) }}</span>
+  </a>
+</div>
+
+<div class="card tight">
+  <div class="meta-line">
+    <span>已预习 {{ info.get('previewed', 0) }} 词</span>
+    <span>有笔记 {{ info.get('noted', 0) }} 条</span>
+  </div>
+</div>
+{% endblock %}

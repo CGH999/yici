@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}我的 · {{ app_name }}{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}" title="返回首页">{{ icon('left', 20) }}</a>
+  <div class="nav-title">我的内容</div>
+  <span style="width:40px"></span>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if info %}
+<div class="grid-2">
+  <div class="stack">
+    <div class="section-title" style="margin:4px 2px 12px">学习</div>
+    <div class="tile-grid">
+      <a class="tile warm" href="{{ url_for('me.preview') }}">
+        <div class="tile-head">{{ icon('eye', 16) }}预习</div>
+        <div class="tile-body">
+          <div class="tile-box">
+            <div><div class="t">接下来</div><div class="c">{{ info.new }} 词</div></div>
+            <div class="go">▶</div>
+          </div>
+          <div class="tile-box">
+            <div><div class="t">已预习</div><div class="c">{{ info.previewed }} 词</div></div>
+            <div class="go">▶</div>
+          </div>
+        </div>
+      </a>
+      <a class="tile cool" href="{{ url_for('me.favorites') }}">
+        <div class="tile-head">{{ icon('star', 16) }}生词本</div>
+        <div class="tile-body">
+          <div class="tile-box">
+            <div><div class="t">收藏</div><div class="c">{{ info.favorited }} 词</div></div>
+            <div class="go">▶</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="section-title" style="margin-top:20px">我的词书</div>
+    <div class="group">
+      <a class="group-row" href="{{ url_for('me.wordbank', name=container, ctype=current_ctype) }}">
+        <span class="ic-box mint">{{ icon('book', 18) }}</span>
+        <span class="grow">在学词书</span>
+        <span class="value">{{ info.total }} 词</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+      <a class="group-row" href="{{ url_for('me.wordbank', name=container, ctype=current_ctype, state='due') }}">
+        <span class="ic-box orange">{{ icon('clock', 18) }}</span>
+        <span class="grow">今天到期</span>
+        <span class="value">{{ info.due_today }} 词</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+      <a class="group-row" href="{{ url_for('me.wordbank', name=container, ctype=current_ctype, state='review') }}">
+        <span class="ic-box amber">{{ icon('check', 18) }}</span>
+        <span class="grow">全部已学</span>
+        <span class="value">{{ info.total - info.new }} 词</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="section-title" style="margin:4px 2px 12px">更多</div>
+    <div class="group">
+      <a class="group-row" href="{{ url_for('me.wordbooks') }}">
+        <span class="ic-box blue">{{ icon('spell', 18) }}</span>
+        <span class="grow">单词本</span>
+        <span class="value">{{ wordbook_count }} 本</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+      <a class="group-row" href="{{ url_for('me.wordbank', name=container, ctype=current_ctype) }}">
+        <span class="ic-box blue">{{ icon('note', 18) }}</span>
+        <span class="grow">笔记</span>
+        <span class="value">{{ info.noted }} 条</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+      <a class="group-row" href="{{ url_for('me.tools') }}">
+        <span class="ic-box blue">{{ icon('layers', 18) }}</span>
+        <span class="grow">学习工具</span>
+        <span class="value">预习 / 到期 / 生词本</span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+      <a class="group-row" href="{{ url_for('me.settings') }}">
+        <span class="ic-box blue">{{ icon('chart', 18) }}</span>
+        <span class="grow">设置</span>
+        <span class="value"></span>
+        <span class="chev">{{ icon('right', 16) }}</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="empty">还没有词书</div>
+{% endif %}
+{% endblock %}

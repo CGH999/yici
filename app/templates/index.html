@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ app_name }}{% endblock %}
+{% block body_class %}home has-corner-nav{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <div class="brand">
+    <img class="brand-icon" src="{{ url_for('static', filename='icon-64.png') }}" alt="">
+    <span>{{ app_name }}</span>
+  </div>
+  <div class="spacer"></div>
+  {% if current_container %}<span class="badge">{{ current_container }}</span>{% endif %}
+  <span class="badge">余额 ¥{{ '%.2f'|format(balance.get('amount', 0) or 0) }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if empty %}
+  <div class="card">
+    <h2>还没有词书</h2>
+    <p class="muted small">先把词库导入进来，然后到「仪表盘」切换当前词书。</p>
+    <pre class="small muted" style="background:#faf9f6;padding:12px;border-radius:14px;overflow:auto">python tools/import_words.py --source "旧库.db" --name cet4</pre>
+  </div>
+{% else %}
+
+<div class="home-grid">
+  <div class="stack">
+    <div class="signin-card">
+      {{ icon('calendar', 34, 1.5) }}
+      <div class="label">签到</div>
+      <div class="date">{{ today_label }}</div>
+      <div class="streak">连续 {{ streak }} 天</div>
+    </div>
+
+    <div class="card tight">
+      <div class="meta-line">
+        <span>今天已学 {{ today.total }} 个</span>
+        <span>一次通过率 {{ '%.0f'|format(totals.first_pass_rate * 100) }}%</span>
+      </div>
+      <div class="divider"></div>
+      <div class="meta-line">
+        <span>在学 {{ current_container }}</span>
+        <span>{{ stats.total }} 词</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    {% for item in unfinished %}
+      <div class="flash info">
+        {{ '学习' if item.kind == 'learning' else '复习' }}还没做完（{{ item.done }}/{{ item.total }}），
+        <a href="{{ url_for('study.session', kind=item.kind) }}"><b>接着做</b></a>
+        <span class="muted small">· 进度已保留</span>
+      </div>
+    {% endfor %}
+    <div class="big-actions">
+      <form method="post" action="{{ url_for('home.start') }}">
+        <input type="hidden" name="kind" value="learning">
+        <button class="big-block learn" {% if stats.new == 0 %}disabled{% endif %}>
+          <div class="k">Learn · 学习新词</div>
+          <div class="n">{{ stats.new }}</div>
+          <div class="s">待学习的词</div>
+        </button>
+      </form>
+      <form method="post" action="{{ url_for('home.start') }}">
+        <input type="hidden" name="kind" value="review">
+        <button class="big-block review" {% if stats.due_today == 0 %}disabled{% endif %}>
+          <div class="k">Review · 复习到期</div>
+          <div class="n">{{ stats.due_today }}</div>
+          <div class="s">今天该复习的词</div>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block bottom %}
+
+<div class="corner-nav">
+  <a class="corner-btn" href="{{ url_for('me.index') }}">{{ icon('user', 18) }}我的</a>
+  <a class="corner-btn" href="{{ url_for('dashboard.index') }}">{{ icon('chart', 18) }}仪表盘</a>
+</div>
+{% endblock %}

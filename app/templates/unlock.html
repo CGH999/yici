@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}输入访问令牌 · {{ app_name }}{% endblock %}
+{% block body_class %}narrow{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <div class="brand">{{ app_name }}</div>
+  <div class="spacer"></div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:420px;margin:8vh auto 0">
+  <h2>输入访问令牌<span class="hint">6 位数字</span></h2>
+  <p class="small muted">
+    这台设备不是本机，需要输入电脑上「设置 → 服务器」里显示的 6 位数字。
+    验证一次后，这台设备在浏览器会话内就不用再输了。
+  </p>
+  <form method="post" action="{{ url_for('home.unlock') }}">
+    <input class="input" name="token" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+           autocomplete="off" placeholder="123456" autofocus
+           style="font-size:26px;letter-spacing:.4em;text-align:center;padding:16px">
+    <button class="btn btn-primary btn-big btn-block mt16">进入</button>
+  </form>
+  {% if error %}<div class="flash error mt16">{{ error }}</div>{% endif %}
+  <p class="small muted mt16">如果你的电脑没开机，或者令牌输错了，找电脑的主人要一下。</p>
+</div>
+{% endblock %}

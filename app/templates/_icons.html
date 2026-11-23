@@ -1,0 +1,62 @@
+{# 内联 SVG 图标（离线可用，不引 CDN） #}
+{% macro icon(name, size=22, width=1.7) -%}
+<svg class="ic" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="{{ width }}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  {%- if name == 'home' -%}
+    <path d="M4 10.6 12 4.2l8 6.4V19a1.4 1.4 0 0 1-1.4 1.4h-4.2v-5.6h-4.8v5.6H5.4A1.4 1.4 0 0 1 4 19z"/>
+  {%- elif name == 'chart' -%}
+    <path d="M4 19.5V10M9.5 19.5V4.5M15 19.5v-6M20.5 19.5V7.5"/>
+  {%- elif name == 'user' -%}
+    <circle cx="12" cy="8.2" r="3.9"/><path d="M4.6 20.4c.6-3.7 3.7-5.6 7.4-5.6s6.8 1.9 7.4 5.6"/>
+  {%- elif name == 'calendar' -%}
+    <rect x="3.5" y="5.2" width="17" height="15.3" rx="3.4"/>
+    <path d="M3.5 9.8h17M8.2 3.6v3.2M15.8 3.6v3.2"/>
+    <circle cx="8.6" cy="13.6" r=".9" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="13.6" r=".9" fill="currentColor" stroke="none"/>
+    <circle cx="15.4" cy="13.6" r=".9" fill="currentColor" stroke="none"/>
+  {%- elif name == 'right' -%}
+    <path d="M9.5 5.5 16 12l-6.5 6.5"/>
+  {%- elif name == 'left' -%}
+    <path d="M14.5 5.5 8 12l6.5 6.5"/>
+  {%- elif name == 'search' -%}
+    <circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/>
+  {%- elif name == 'book' -%}
+    <path d="M5 4.5h9.5A3.5 3.5 0 0 1 18 8v12H8.5A3.5 3.5 0 0 1 5 16.5z"/>
+    <path d="M5 16.5A3.5 3.5 0 0 1 8.5 13H18"/>
+  {%- elif name == 'spell' -%}
+    <path d="m4.5 19.5 1-4.2L16 4.8a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.7 18.5z"/>
+    <path d="m14.6 6.2 3.2 3.2"/>
+  {%- elif name == 'star' -%}
+    <path d="m12 4.3 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 10l5.4-.8z"/>
+  {%- elif name == 'check' -%}
+    <circle cx="12" cy="12" r="8.4"/><path d="m8.2 12.2 2.6 2.6 5-5.2"/>
+  {%- elif name == 'flame' -%}
+    <path d="M12 3.6c3.4 3 5.4 5.6 5.4 8.8a5.4 5.4 0 0 1-10.8 0c0-1.6.6-3 1.8-4.4.5 1 1.1 1.7 1.8 2 .4-2.2.8-4.2 1.8-6.4z"/>
+  {%- elif name == 'clock' -%}
+    <circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.2 2"/>
+  {%- elif name == 'note' -%}
+    <path d="M6 4.4h8.4L18 8v11.6H6z"/><path d="M14 4.4V8h4"/><path d="M8.8 12.4h6M8.8 15.8h4"/>
+  {%- elif name == 'eye' -%}
+    <path d="M2.8 12S6 6.4 12 6.4 21.2 12 21.2 12 18 17.6 12 17.6 2.8 12 2.8 12z"/>
+    <circle cx="12" cy="12" r="2.6"/>
+  {%- elif name == 'plus' -%}
+    <path d="M12 5.5v13M5.5 12h13"/>
+  {%- elif name == 'layers' -%}
+    <path d="m12 3.8 8 4.2-8 4.2-8-4.2z"/><path d="m4 12.4 8 4.2 8-4.2"/><path d="m4 16.6 8 4.2 8-4.2"/>
+  {%- elif name == 'x' -%}
+    <circle cx="12" cy="12" r="8.4"/><path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6"/>
+  {%- elif name == 'speaker' -%}
+    <path d="M4.5 9.5h3.2L12 5.8v12.4L7.7 14.5H4.5z"/>
+    <path d="M15.6 9.4a3.6 3.6 0 0 1 0 5.2M18.2 6.9a7 7 0 0 1 0 10.2"/>
+  {%- elif name == 'headphone' -%}
+    <path d="M4.5 15.5v-3a7.5 7.5 0 0 1 15 0v3"/>
+    <rect x="3" y="14.4" width="3.6" height="5.6" rx="1.6"/>
+    <rect x="17.4" y="14.4" width="3.6" height="5.6" rx="1.6"/>
+  {%- elif name == 'mic' -%}
+    <rect x="9" y="3.4" width="6" height="9.6" rx="3"/>
+    <path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0M12 17.8V21"/>
+  {%- else -%}
+    <circle cx="12" cy="12" r="7.5"/>
+  {%- endif -%}
+</svg>
+{%- endmacro %}

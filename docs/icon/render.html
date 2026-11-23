@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  .icon {
+    position: relative;
+    width: 1024px; height: 1024px;
+    border-radius: 226px;
+    overflow: hidden;
+    background: radial-gradient(120% 110% at 26% 6%, #8FB4FF 0%, #5378FF 42%, #2C49D8 100%);
+  }
+  .glow {
+    position: absolute; width: 760px; height: 760px; left: -180px; top: -220px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255,255,255,.35), rgba(255,255,255,0));
+  }
+  .char {
+    position: absolute; left: 50%; bottom: -6%; width: 102%;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 18px 30px rgba(10, 24, 90, .28));
+  }
+  /* 气泡：她在读一个词 */
+  .bubble {
+    position: absolute; left: 5.5%; top: 8.5%; width: 22%;
+    aspect-ratio: 1 / .94;
+    background: #fff;
+    border-radius: 46% 46% 14% 46%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 700; font-size: 118px; line-height: 1;
+    color: #2F55E8;
+    box-shadow: 0 16px 30px rgba(8, 20, 80, .34);
+    transform: rotate(-4deg);
+  }
+  .bubble span { transform: translateY(6px); }
+  .sparkle { position: absolute; fill: #FFFFFF; opacity: .85; }
+  .s1 { left: 27%; top: 6%; width: 44px; }
+  .s2 { left: 6%; top: 30%; width: 26px; }
+</style>
+</head>
+<body>
+<div class="icon">
+  <div class="glow"></div>
+  <img class="char" src="DSniang1.png" alt="">
+  <div class="bubble"><span>Aa</span></div>
+  <svg class="sparkle s1" viewBox="0 0 24 24"><path d="M12 2l1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6z"/></svg>
+  <svg class="sparkle s2" viewBox="0 0 24 24"><path d="M12 2l1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6z"/></svg>
+</div>
+</body>
+</html>

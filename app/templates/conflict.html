@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}未完成的任务{% endblock %}
+
+{% block header %}
+<div class="topbar">
+  <a class="nav-btn" href="{{ url_for('home.index') }}">{{ icon('left', 20) }}</a>
+  <div class="nav-title">未完成的任务</div>
+  <span style="width:38px"></span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>{{ '学习' if kind == 'learning' else '复习' }}任务还没做完</h2>
+  <div class="stat-grid">
+    <div class="stat accent"><div class="label">已完成</div><div class="num">{{ progress.done }}</div></div>
+    <div class="stat"><div class="label">剩余</div><div class="num">{{ progress.remaining }}</div></div>
+  </div>
+  <p class="muted small mt16">继续会接着上次的进度；重新开始会丢掉本轮尚未完成的答题记录（已完成的词不受影响）。</p>
+  <div class="btn-row mt16">
+    <a class="btn btn-primary grow" href="{{ url_for('study.session', kind=kind) }}" style="flex:1">继续上次</a>
+    <form method="post" action="{{ url_for('home.start') }}">
+      <input type="hidden" name="kind" value="{{ kind }}">
+      <input type="hidden" name="force" value="1">
+      <button class="btn btn-danger">丢弃重来</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
