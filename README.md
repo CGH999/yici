@@ -108,3 +108,12 @@ exe 里只有程序本体（代码 + 模板 + 静态资源 + 出厂提示词）�
 1. 设置页 → 初始化 → 勾选"同时清空 API Key" → 执行
 2. 或者手动删掉 `config/ai.json`、`data/tasks.db`、`data/user/history.db`、`data/memory/`
 3. `data/library.db` 可以留着，也可以删掉让对方自己导入词书
+
+## 示例词书
+
+`examples/wordbooks/` 里放了两份现成的词书，可以直接导入体验：
+
+- `cet4.json`（5833 词）、`cet6.json`（8029 词），格式就是「新建词书」要的 `{"data": [...]}`
+
+导入方式：**仪表盘 → ＋ 新建词书（粘贴 JSON） → 从文件读取… → 选文件 → 确认导入**。
+详见 [examples/wordbooks/README.md](examples/wordbooks/README.md)。
